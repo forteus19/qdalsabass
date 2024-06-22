@@ -14,6 +14,8 @@
 #include "portable-file-dialogs.h"
 #include <SDL2/SDL.h>
 
+#define SYSEX_GM_RESET "\xF0\x7E\x7F\x09\x01\xF7"
+
 static bool running = true;
 
 static snd_seq_t *seq_handle;
@@ -96,9 +98,14 @@ void stream_alsa_event(snd_seq_event_t *ev) {
         }
         break;
 
-    case SND_SEQ_EVENT_REGPARAM:
-        switch (ev->data.control.param) {
-            case 0: BASS_MIDI_StreamEvent(bass_stream, ev->data.control.channel, MIDI_EVENT_PITCHRANGE, ev->data.control.value); break;
+    case SND_SEQ_EVENT_SYSEX:
+        {
+            if (ev->data.ext.len != 6) {
+                break;
+            }
+            if (strncmp((char *)ev->data.ext.ptr, SYSEX_GM_RESET, 6) == 0) {
+                BASS_MIDI_StreamEvent(bass_stream, 0, MIDI_EVENT_SYSTEMEX, MIDI_SYSTEM_GS);
+            }
         }
         break;
     }
@@ -107,11 +114,18 @@ void stream_alsa_event(snd_seq_event_t *ev) {
 
 void log_alsa_event(snd_seq_event_t *ev) {
     switch (ev->type) {
-        // case SND_SEQ_EVENT_NOTEON: printf("[%d] NOTEON key: %d vel: %d\n", ev->data.note.channel, ev->data.note.note, ev->data.note.velocity); break;
-        // case SND_SEQ_EVENT_NOTEOFF: printf("[%d] NOTEOFF key: %d\n", ev->data.note.channel, ev->data.note.note); break;
+        case SND_SEQ_EVENT_NOTEON: printf("[%d] NOTEON key: %d vel: %d\n", ev->data.note.channel, ev->data.note.note, ev->data.note.velocity); break;
+        case SND_SEQ_EVENT_NOTEOFF: printf("[%d] NOTEOFF key: %d\n", ev->data.note.channel, ev->data.note.note); break;
         case SND_SEQ_EVENT_CONTROLLER: printf("[%d] CC param: %d value: %d\n", ev->data.control.channel, ev->data.control.param, ev->data.control.value); break;
         case SND_SEQ_EVENT_NONREGPARAM: printf("[%d] NRPN param: %d value: %d\n", ev->data.control.channel, ev->data.control.param, ev->data.control.value); break;
         case SND_SEQ_EVENT_REGPARAM: printf("[%d] RPN param: %d value: %d\n", ev->data.control.channel, ev->data.control.param, ev->data.control.value); break;
+        case SND_SEQ_EVENT_SYSEX: {
+            printf("[G] SYSEX len: %d data: ", ev->data.ext.len);
+            for (int i = 0; i < ev->data.ext.len; i++) {
+                printf("0x%02X ", ((uint8_t *)ev->data.ext.ptr)[i]);
+            }
+            printf("\n");
+        } break;
     }
 }
 
@@ -285,6 +299,7 @@ int main(int argc, char** argv) {
     BASS_Init(-1, 44100, 0, NULL, NULL);
 
     bass_stream = BASS_MIDI_StreamCreate(16, BASS_SAMPLE_FLOAT | BASS_MIDI_ASYNC, 1);
+    bass_soundfont = 0;
 
     BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_VOL, 0.75);
     BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_BUFFER, 0);
