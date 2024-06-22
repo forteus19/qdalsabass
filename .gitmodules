@@ -1,0 +1,6 @@
+[submodule "submodules/imgui"]
+	path = submodules/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "submodules/pfd"]
+	path = submodules/pfd
+	url = https://github.com/samhocevar/portable-file-dialogs.git
