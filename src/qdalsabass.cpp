@@ -31,11 +31,12 @@ void clean_exit(int signum) {
     if (!running) {
         return;
     }
-
     if (bass_soundfont != 0) {
         BASS_MIDI_FontFree(bass_soundfont);
     }
-    BASS_Free();
+    if (BASS_IsStarted() != 0) {
+        BASS_Free();
+    }
 
     running = false;
 }
@@ -129,11 +130,57 @@ void log_alsa_event(snd_seq_event_t *ev) {
     }
 }
 
-void *gui_main(void *data) {
+void *midi_main(void *data) {
+    if (HIWORD(BASS_GetVersion()) != BASSVERSION) {
+        fprintf(stderr, "BASS version mismatch");
+        clean_exit(0);
+        return NULL;
+    }
+
+    BASS_Init(-1, 44100, 0, NULL, NULL);
+
+    bass_stream = BASS_MIDI_StreamCreate(16, BASS_SAMPLE_FLOAT | BASS_MIDI_ASYNC, 1);
+    bass_soundfont = 0;
+
+    BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_VOL, 0.75);
+    BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_BUFFER, 0);
+    BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_MIDI_VOICES, 1000);
+    BASS_ChannelFlags(bass_stream, BASS_MIDI_NOFX, BASS_MIDI_NOFX);
+
+    BASS_MIDI_StreamEvent(bass_stream, 0, MIDI_EVENT_SYSTEM, MIDI_SYSTEM_GS);
+
+    BASS_ChannelPlay(bass_stream, FALSE);
+
+    snd_seq_open(&seq_handle, "default", SND_SEQ_OPEN_INPUT, 0);
+    snd_seq_set_client_name(seq_handle, "qdalsabass");
+
+    seq_port = snd_seq_create_simple_port(
+        seq_handle,
+        "qdalsabass input port",
+        SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
+        SND_SEQ_PORT_TYPE_APPLICATION
+    );
+
+    while (running) {
+        snd_seq_event_t *ev = NULL;
+        if (snd_seq_event_input(seq_handle, &ev) >= 0) {
+            stream_alsa_event(ev);
+            // log_alsa_event(ev);
+        }
+    }
+
+    return NULL;
+}
+
+int main(int argc, char** argv) {
+    pthread_t gui_thread;
+    pthread_create(&gui_thread, NULL, midi_main, NULL);
+    pthread_detach(gui_thread);
+
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         fprintf(stderr, "SDL_Init error: %s\n", SDL_GetError());
         clean_exit(0);
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
 #ifdef SDL_HINT_IME_SHOW_UI
@@ -150,7 +197,7 @@ void *gui_main(void *data) {
     if (sdl_window == NULL) {
         fprintf(stderr, "SDL_CreateWindow error: %s\n", SDL_GetError());
         clean_exit(0);
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     SDL_Renderer* sdl_renderer = SDL_CreateRenderer(
@@ -160,7 +207,7 @@ void *gui_main(void *data) {
     if (sdl_renderer == NULL) {
         fprintf(stderr, "SDL_CreateRenderer error: %s\n", SDL_GetError());
         clean_exit(0);
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     IMGUI_CHECKVERSION();
@@ -175,6 +222,7 @@ void *gui_main(void *data) {
     ImGui_ImplSDLRenderer2_Init(sdl_renderer);
 
     bool show_debug_window = false;
+    bool show_imgui_demo_window = false;
     
     int max_voices_buf = 1000;
 
@@ -198,17 +246,24 @@ void *gui_main(void *data) {
                 if (ImGui::MenuItem("Debug window", "", show_debug_window)) {
                     show_debug_window ^= 1;
                 }
+                if (ImGui::MenuItem("ImGui demo window", "", show_imgui_demo_window)) {
+                    show_imgui_demo_window ^= 1;
+                }
                 ImGui::EndMenu();
             }
             ImGui::EndMenuBar();
         }
         
         ImGui::Text("Draw FPS: %.0f", io.Framerate);
-        ImGui::Text("Listening on %d:%d", snd_seq_client_id(seq_handle), seq_port);
+        if (seq_handle != NULL) {
+            ImGui::Text("Listening on %d:%d", snd_seq_client_id(seq_handle), seq_port);
+        } else {
+            ImGui::Text("Waiting...");
+        }
 
         ImGui::Separator();
 
-        if (ImGui::Button("Open soundfont", ImVec2(160, 0))) {
+        if (ImGui::Button("Open soundfont")) {
             pfd::open_file f = pfd::open_file(
                 "Choose a soundfont",
                 pfd::path::home(),
@@ -268,6 +323,10 @@ cancel_open_sf:
 
 skip_debug_window:
 
+        if (show_imgui_demo_window) {
+            ImGui::ShowDemoWindow(&show_imgui_demo_window);
+        }
+
         ImGui::Render();
         SDL_RenderSetScale(sdl_renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
         SDL_SetRenderDrawColor(sdl_renderer, 180, 180, 180, 255);
@@ -285,55 +344,6 @@ skip_debug_window:
     SDL_DestroyWindow(sdl_window);
     SDL_Quit();
     
-    return NULL;
-}
-
-int main(int argc, char** argv) {
-    signal(SIGINT, clean_exit);
-
-    if (HIWORD(BASS_GetVersion()) != BASSVERSION) {
-        fprintf(stderr, "BASS version mismatch");
-        return 1;
-    }
-
-    BASS_Init(-1, 44100, 0, NULL, NULL);
-
-    bass_stream = BASS_MIDI_StreamCreate(16, BASS_SAMPLE_FLOAT | BASS_MIDI_ASYNC, 1);
-    bass_soundfont = 0;
-
-    BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_VOL, 0.75);
-    BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_BUFFER, 0);
-    BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_MIDI_VOICES, 1000);
-    BASS_ChannelFlags(bass_stream, BASS_MIDI_NOFX, BASS_MIDI_NOFX);
-
-    BASS_MIDI_StreamEvent(bass_stream, 0, MIDI_EVENT_SYSTEM, MIDI_SYSTEM_GS);
-
-    BASS_ChannelPlay(bass_stream, FALSE);
-
-    snd_seq_open(&seq_handle, "default", SND_SEQ_OPEN_INPUT, 0);
-    snd_seq_set_client_name(seq_handle, "qdalsabass");
-
-    seq_port = snd_seq_create_simple_port(
-        seq_handle,
-        "qdalsabass input port",
-        SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
-        SND_SEQ_PORT_TYPE_APPLICATION
-    );
-
-    snd_seq_nonblock(seq_handle, SND_SEQ_NONBLOCK);
-
-    pthread_t gui_thread;
-    pthread_create(&gui_thread, NULL, gui_main, NULL);
-    pthread_detach(gui_thread);
-
-    while (running) {
-        snd_seq_event_t *ev = NULL;
-        if (snd_seq_event_input(seq_handle, &ev) >= 0) {
-            stream_alsa_event(ev);
-            // log_alsa_event(ev);
-        }
-    }
-
     clean_exit(0);
     return 0;
 }
