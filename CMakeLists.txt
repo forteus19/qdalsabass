@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.28)
 project(qdalsabass)
 
 file(GLOB_RECURSE SRCS src/*.cpp)
-file(GLOB_RECURSE HDRS src/*.hpp)
+file(GLOB_RECURSE HDRS src/*.h)
 
 add_executable(qdalsabass ${SRCS} ${HDRS})
 

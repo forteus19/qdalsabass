@@ -1,3 +1,5 @@
+#define QDALSABASS_VERSION "0.1-DEV"
+
 #include <alsa/asoundlib.h>
 #include <csignal>
 #include <cstdio>
@@ -5,6 +7,7 @@
 #include <cstring>
 #include <pthread.h>
 #include <string>
+#include <vector>
 
 #include "bass.h"
 #include "bassmidi.h"
@@ -14,25 +17,36 @@
 #include "portable-file-dialogs.h"
 #include <SDL2/SDL.h>
 
+#include "font.h"
+
 #define SYSEX_GM_RESET "\xF0\x7E\x7F\x09\x01\xF7"
+
+typedef struct {
+    std::string path;
+    BASS_MIDI_FONT config;
+} loaded_soundfont_t;
 
 static bool running = true;
 
 static snd_seq_t *seq_handle;
 static int seq_port;
 static HSTREAM bass_stream;
-static HSOUNDFONT bass_soundfont;
-static std::string bass_soundfont_path;
+static std::vector<loaded_soundfont_t> soundfonts;
 
 static int rpn_params[16];
 static int rpn_vals[16];
+
+static bool show_about_modal = false;
+static bool show_sf_error_modal = false;
 
 void clean_exit(int signum) {
     if (!running) {
         return;
     }
-    if (bass_soundfont != 0) {
-        BASS_MIDI_FontFree(bass_soundfont);
+    for (auto const &sf : soundfonts) {
+        if (sf.config.font != 0) {
+            BASS_MIDI_FontFree(sf.config.font);
+        }
     }
     if (BASS_IsStarted() != 0) {
         BASS_Free();
@@ -140,7 +154,6 @@ void *midi_main(void *data) {
     BASS_Init(-1, 44100, 0, NULL, NULL);
 
     bass_stream = BASS_MIDI_StreamCreate(16, BASS_SAMPLE_FLOAT | BASS_MIDI_ASYNC, 1);
-    bass_soundfont = 0;
 
     BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_VOL, 0.75);
     BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_BUFFER, 0);
@@ -172,10 +185,53 @@ void *midi_main(void *data) {
     return NULL;
 }
 
+void prompt_soundfont(void) {
+    pfd::open_file f = pfd::open_file(
+        "Choose a soundfont",
+        pfd::path::home(),
+        {
+            "Soundfonts (sf2, sf2pack, sf3, sfz)", "*.sf2 *.sf2pack *.sf3 *.sfz",
+            "All files", "*"
+        }
+    );
+    if (f.result().empty()) {
+        return;
+    }
+    std::string result = f.result()[0];
+    
+    BASS_MIDI_FONT sf_config;
+    sf_config.font = BASS_MIDI_FontInit(result.c_str(), 0);
+    if (sf_config.font == 0) {
+        fprintf(stderr, "prompt_soundfont() BASS error: %d\n", BASS_ErrorGetCode());
+        show_sf_error_modal = true;
+        return;
+    }
+    sf_config.preset = -1;
+    sf_config.bank = 0;
+
+    soundfonts.push_back({ result, sf_config });
+    return;
+}
+
+void reload_soundfonts(void) {
+    BASS_MIDI_FONT fonts[soundfonts.size()];
+    for (int i = 0; i < soundfonts.size(); i++) {
+        fonts[i] = soundfonts[i].config;
+    }
+
+    if (!BASS_MIDI_StreamSetFonts(bass_stream, fonts, soundfonts.size())) {
+        fprintf(stderr, "reload_soundfonts() BASS error: %d\n", BASS_ErrorGetCode());
+        show_sf_error_modal = true;
+    }
+}
+
 int main(int argc, char** argv) {
-    pthread_t gui_thread;
-    pthread_create(&gui_thread, NULL, midi_main, NULL);
-    pthread_detach(gui_thread);
+    signal(SIGINT, clean_exit);
+    signal(SIGTERM, clean_exit);
+
+    pthread_t midi_thread;
+    pthread_create(&midi_thread, NULL, midi_main, NULL);
+    pthread_detach(midi_thread);
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         fprintf(stderr, "SDL_Init error: %s\n", SDL_GetError());
@@ -191,7 +247,7 @@ int main(int argc, char** argv) {
         "qdalsabass window",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        800, 480,
+        640, 480,
         SDL_WINDOW_RESIZABLE
     );
     if (sdl_window == NULL) {
@@ -215,16 +271,18 @@ int main(int argc, char** argv) {
 
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.IniFilename = NULL;
+    
+    ImFont *imfont = io.Fonts->AddFontFromMemoryCompressedTTF(font_compressed_data, font_compressed_size, 17);
+    ImFont *imfont_big = io.Fonts->AddFontFromMemoryCompressedTTF(font_compressed_data, font_compressed_size, 17 * 2);
 
-    ImGui::StyleColorsLight();
+    ImGui::StyleColorsDark();
 
     ImGui_ImplSDL2_InitForSDLRenderer(sdl_window, sdl_renderer);
     ImGui_ImplSDLRenderer2_Init(sdl_renderer);
-
-    bool show_debug_window = false;
-    bool show_imgui_demo_window = false;
     
     int max_voices_buf = 1000;
+    int selected_soundfont_row = -1;
 
     while (running) {
         SDL_Event sdl_event;
@@ -239,97 +297,208 @@ int main(int argc, char** argv) {
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("qdalsabass main window", NULL, ImGuiWindowFlags_MenuBar);
+        ImGui::PushFont(imfont);
+
+        int wx, wy;
+        SDL_GetWindowSize(sdl_window, &wx, &wy);
+
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImVec2(wx, wy));
+        ImGui::Begin(
+            "qdalsabass main window",
+            NULL,
+            ImGuiWindowFlags_NoTitleBar |
+            ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoMove     |
+            ImGuiWindowFlags_NoResize   |
+            ImGuiWindowFlags_MenuBar
+        );
 
         if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Load config from...")) {}
+                if (ImGui::MenuItem("Save config as...")) {}
+
+                ImGui::EndMenu();
+            }
             if (ImGui::BeginMenu("View")) {
-                if (ImGui::MenuItem("Debug window", "", show_debug_window)) {
-                    show_debug_window ^= 1;
-                }
-                if (ImGui::MenuItem("ImGui demo window", "", show_imgui_demo_window)) {
-                    show_imgui_demo_window ^= 1;
+                if (ImGui::BeginMenu("Appearance")) {
+                    if (ImGui::MenuItem("Dark mode")) {
+                        ImGui::StyleColorsDark();
+                    }
+                    if (ImGui::MenuItem("Light mode")) {
+                        ImGui::StyleColorsLight();
+                    }
+                    ImGui::EndMenu();
                 }
                 ImGui::EndMenu();
             }
+            if (ImGui::BeginMenu("Help")) {
+                if (ImGui::MenuItem("GitHub")) {
+                    system("xdg-open https://github.com/forteus19/qdalsabass");
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("About qdalsabass")) {
+                    show_about_modal = true;
+                }
+
+                ImGui::EndMenu();
+            }
+            
             ImGui::EndMenuBar();
         }
-        
-        ImGui::Text("Draw FPS: %.0f", io.Framerate);
-        if (seq_handle != NULL) {
-            ImGui::Text("Listening on %d:%d", snd_seq_client_id(seq_handle), seq_port);
-        } else {
-            ImGui::Text("Waiting...");
-        }
 
-        ImGui::Separator();
+        if (ImGui::BeginTabBar("mainBar")) {
+            if (ImGui::BeginTabItem("Info")) {
+                ImGui::Text("Draw FPS: %.0f", io.Framerate);
+                if (seq_handle != NULL) {
+                    ImGui::Text("Listening on %d:%d", snd_seq_client_id(seq_handle), seq_port);
 
-        if (ImGui::Button("Open soundfont")) {
-            pfd::open_file f = pfd::open_file(
-                "Choose a soundfont",
-                pfd::path::home(),
-                {
-                    "Soundfonts (sf2, sf2pack, sf3, sfz)", "*.sf2 *.sf2pack *.sf3 *.sfz",
-                    "All files", "*"
+                    ImGui::Separator();
+
+                    ImGui::Text("Rendering time: %.1f%%", BASS_GetCPU());
+                    float active_voices;
+                    BASS_ChannelGetAttribute(bass_stream, BASS_ATTRIB_MIDI_VOICES_ACTIVE, &active_voices);
+                    ImGui::Text("Active voices: %.0f", active_voices);
+                } else {
+                    ImGui::Text("Waiting...");
                 }
-            );
-            if (f.result().empty()) {
-                goto cancel_open_sf;
+
+                ImGui::EndTabItem();
             }
-            std::string result = f.result()[0];
+            if (ImGui::BeginTabItem("Settings")) {
+                if (ImGui::Button("Apply settings")) {
+                    BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_MIDI_VOICES, (float)max_voices_buf);
+                }
 
-            HSOUNDFONT new_bass_soundfont = BASS_MIDI_FontInit(result.c_str(), 0);
-            if (new_bass_soundfont == 0) {
-                goto cancel_open_sf;
+                ImGui::InputInt("Max voices", &max_voices_buf);
+                if (max_voices_buf > 100000) {
+                    max_voices_buf = 100000;
+                }
+
+                ImGui::EndTabItem();
             }
-            BASS_MIDI_FONT sf_config;
-            sf_config.font = new_bass_soundfont;
-            sf_config.preset = -1;
-            sf_config.bank = 0;
-            BASS_MIDI_StreamSetFonts(bass_stream, &sf_config, 1);
-            BASS_MIDI_FontFree(bass_soundfont);
-            bass_soundfont = new_bass_soundfont;
+            if (ImGui::BeginTabItem("Soundfonts")) {
+                if (ImGui::Button("Add soundfont")) {
+                    prompt_soundfont();
+                    reload_soundfonts();
+                }
+                ImGui::SameLine();
+                ImGui::BeginDisabled(selected_soundfont_row < 0);
+                if (ImGui::Button("Remove soundfont")) {
+                    BASS_MIDI_FontFree(soundfonts[selected_soundfont_row].config.font);
+                    soundfonts.erase(soundfonts.begin() + selected_soundfont_row);
+                    reload_soundfonts();
+                    selected_soundfont_row = -1;
+                }
+                ImGui::EndDisabled();
+                ImGui::SameLine();
+                if (ImGui::Button("Reload soundfonts")) {
+                    reload_soundfonts();
+                }
+                ImGui::BeginDisabled(selected_soundfont_row < 1);
+                ImGui::SameLine();
+                if (ImGui::Button("Move up")) {
+                    std::swap(soundfonts[selected_soundfont_row], soundfonts[selected_soundfont_row - 1]);
+                    reload_soundfonts();
+                    selected_soundfont_row--;
+                }
+                ImGui::EndDisabled();
+                ImGui::BeginDisabled(selected_soundfont_row >= (soundfonts.size() - 1));
+                ImGui::SameLine();
+                if (ImGui::Button("Move down")) {
+                    std::swap(soundfonts[selected_soundfont_row], soundfonts[selected_soundfont_row + 1]);
+                    reload_soundfonts();
+                    selected_soundfont_row++;
+                }
+                ImGui::EndDisabled();
 
-            bass_soundfont_path = result.substr(result.rfind("/") + 1);
+                int dummy_preset_val = -1;
+                int dummy_bank_val = 0;
+
+                ImGui::BeginDisabled(selected_soundfont_row < 0);
+                ImGui::InputInt("Preset", selected_soundfont_row < 0 ? &dummy_preset_val : &soundfonts[selected_soundfont_row].config.preset);
+                ImGui::InputInt("Bank", selected_soundfont_row < 0 ? &dummy_bank_val : &soundfonts[selected_soundfont_row].config.bank);
+                ImGui::EndDisabled();
+
+                if (ImGui::BeginTable("soundfontsTable", 3, ImGuiTableFlags_Hideable | ImGuiTableFlags_Borders)) {
+                    ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None, 0.8f);
+                    ImGui::TableSetupColumn("Preset", ImGuiTableColumnFlags_None, 0.1f);
+                    ImGui::TableSetupColumn("Bank", ImGuiTableColumnFlags_None, 0.1f);
+                    ImGui::TableHeadersRow();
+                    int row = 0;
+                    for (auto const &sf : soundfonts) {
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        if (ImGui::Selectable(sf.path.c_str(), selected_soundfont_row == row, ImGuiSelectableFlags_SpanAllColumns)) {
+                            selected_soundfont_row = row;
+                        }
+                        ImGui::TableNextColumn();
+                        ImGui::Text("%d", sf.config.preset);
+                        ImGui::TableNextColumn();
+                        ImGui::Text("%d", sf.config.bank);
+                        row++;
+                    }
+                    ImGui::EndTable();
+                }
+
+                ImGui::EndTabItem();
+            } else {
+                selected_soundfont_row = -1;
+            }
+            ImGui::EndTabBar();
         }
-
-cancel_open_sf:
-        ImGui::Text("Current soundfont: %s", bass_soundfont_path.c_str());
-
-        ImGui::Separator();
-
-        if (ImGui::Button("Apply settings")) {
-            BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_MIDI_VOICES, (float)max_voices_buf);
-        }
-
-        ImGui::InputInt("Max voices", &max_voices_buf);
-        if (max_voices_buf > 100000) {
-            max_voices_buf = 100000;
-        }
-
+        
         ImGui::End();
 
-        if (!show_debug_window) {
-            goto skip_debug_window;
+        if (show_about_modal) {
+            ImGui::OpenPopup("About qdalsabass");
+            show_about_modal = false;
+        }
+        if (show_sf_error_modal) {
+            ImGui::OpenPopup("Soundfont error");
+            show_sf_error_modal = false;
         }
 
-        ImGui::Begin("qdalsabass debug window", &show_debug_window);
+        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        if (ImGui::BeginPopupModal("About qdalsabass", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::PushFont(imfont_big);
+            ImGui::Text("qdalsabass");
+            ImGui::PopFont();
 
-        ImGui::Text("Rendering time: %.1f%%", BASS_GetCPU());
-        float active_voices;
-        BASS_ChannelGetAttribute(bass_stream, BASS_ATTRIB_MIDI_VOICES_ACTIVE, &active_voices);
-        ImGui::Text("Active voices: %.0f", active_voices);
+            ImGui::Spacing();
 
-        ImGui::End();
+            ImGui::Text("Created by forteus19");
+            ImGui::Text("Version: " QDALSABASS_VERSION);
+            ImGui::Text("License: GPL-3.0");
 
-skip_debug_window:
+            ImGui::Separator();
 
-        if (show_imgui_demo_window) {
-            ImGui::ShowDemoWindow(&show_imgui_demo_window);
+            if (ImGui::Button("Close")) {
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
         }
+        if (ImGui::BeginPopupModal("Soundfont error", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Failed to load soundfont");
+
+            ImGui::Separator();
+
+            ImGui::SetItemDefaultFocus();
+            if (ImGui::Button("Close")) {
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
+
+        ImGui::PopFont();
 
         ImGui::Render();
         SDL_RenderSetScale(sdl_renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
-        SDL_SetRenderDrawColor(sdl_renderer, 180, 180, 180, 255);
+        SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
         SDL_RenderClear(sdl_renderer);
 
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), sdl_renderer);
