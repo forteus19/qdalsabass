@@ -1,5 +1,10 @@
 // File: 'Karla-Regular.ttf' (16848 bytes)
 // Exported using binary_to_compressed_c.cpp
+#ifndef _QDAB_FONT_H
+#define _QDAB_FONT_H
+
+namespace qdab::font {
+
 static const unsigned int font_compressed_size = 12719;
 static const unsigned int font_compressed_data[12720/4] =
 {
@@ -270,3 +275,6 @@ static const unsigned int font_compressed_data[12720/4] =
     0x06354408, 0x69820120, 0x24050744, 0x00020008, 0x8237821a, 0x30029018, 0x00010002, 0x001c0013, 0x00000000, 0x00000001, 0xdefa0500, 0x0085a6b8, 
 };
 
+}
+
+#endif

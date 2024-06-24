@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
+set(CMAKE_CXX_STANDARD 20)
+
 project(qdalsabass)
 
 file(GLOB_RECURSE SRCS src/*.cpp)
@@ -30,6 +32,10 @@ add_library(pfd INTERFACE)
 
 target_include_directories(pfd INTERFACE submodules/pfd)
 
+add_library(nlohmann_json INTERFACE)
+
+target_include_directories(nlohmann_json INTERFACE submodules/json/include)
+
 target_include_directories(qdalsabass PRIVATE inc)
 target_include_directories(qdalsabass PRIVATE submodules/imgui)
 target_include_directories(qdalsabass PRIVATE submodules/imgui/backends)
@@ -40,4 +46,5 @@ target_link_libraries(qdalsabass PRIVATE asound)
 target_link_libraries(qdalsabass PRIVATE SDL2)
 target_link_libraries(qdalsabass PRIVATE imgui)
 target_link_libraries(qdalsabass PRIVATE pfd)
+target_link_libraries(qdalsabass PRIVATE nlohmann_json)
 target_link_libraries(qdalsabass PRIVATE ${LIBS})
