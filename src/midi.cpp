@@ -3,6 +3,8 @@
 #include <cstdio>
 
 #include "global.h"
+#include "gui.h"
+#include "settings.h"
 
 namespace qdab::midi {
 
@@ -225,7 +227,10 @@ void *midi_main(void *data) {
         return NULL;
     }
 
-    BASS_Init(-1, 44100, 0, NULL, NULL);
+    if (!BASS_Init(-1, settings::sample_rate_vals[global::settings.sample_rate], 0, NULL, NULL)) {
+        gui::handle_bass_failure(BASS_ErrorGetCode());
+        return NULL;
+    }
 
     bass_stream = BASS_MIDI_StreamCreate(16, BASS_SAMPLE_FLOAT | BASS_MIDI_ASYNC, 1);
 
@@ -247,6 +252,8 @@ void *midi_main(void *data) {
         SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
         SND_SEQ_PORT_TYPE_APPLICATION
     );
+
+    init_from_settings();
 
     while (global::running) {
         snd_seq_event_t *ev = NULL;

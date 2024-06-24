@@ -24,17 +24,32 @@ static ImFont *imfont;
 static ImFont *imfont_big;
 
 static std::string config_error_modal_msg;
+static int bass_failed_modal_msg;
 
 static int selected_soundfont_row = -1;
 
 enum modal_id_ {
     ABOUT_MODAL_ID = 0,
     BASS_ERROR_MODAL_ID = 1,
-    CONFIG_ERROR_MODAL_ID = 2
+    CONFIG_ERROR_MODAL_ID = 2,
+    BASS_FAILED_MODAL_ID = 3
 };
 
-bool is_initialized(void) {
-    return initialized;
+void add_all_modals(void) {
+    void show_about_modal(void);
+    void show_bass_error_modal(void);
+    void show_config_error_modal(void);
+    void show_bass_failed_modal(void);
+
+    modal::add_modal(ABOUT_MODAL_ID, "About qdalsabass", show_about_modal, ImVec2(320, 0));
+    modal::add_modal(BASS_ERROR_MODAL_ID, "BASS error", show_bass_error_modal, ImVec2(320, 0));
+    modal::add_modal(CONFIG_ERROR_MODAL_ID, "Config error", show_config_error_modal, ImVec2(320, 0));
+    modal::add_modal(BASS_FAILED_MODAL_ID, "BASS fatal error", show_bass_failed_modal, ImVec2(320, 0));
+}
+
+void handle_bass_failure(int error_code) {
+    bass_failed_modal_msg = error_code;
+    modal::show_modal(BASS_FAILED_MODAL_ID);
 }
 
 int prompt_soundfont(void) {
@@ -98,6 +113,23 @@ std::optional<std::string> init_from_settings(void) {
     return std::nullopt;
 }
 
+void handle_init_all(std::optional<std::string> init_all_out) {
+    if (init_all_out.has_value()) {
+        config_error_modal_msg = init_all_out.value();
+        modal::show_modal(CONFIG_ERROR_MODAL_ID);
+    }
+}
+
+void warning_marker(const char *text) {
+    ImGui::TextDisabled("(!)");
+    if (ImGui::BeginItemTooltip()) {
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(text);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
 void show_about_modal(void) {
     ImGui::PushFont(imfont_big);
     ImGui::Text("qdalsabass");
@@ -148,6 +180,23 @@ void show_config_error_modal(void) {
     }
 }
 
+void show_bass_failed_modal(void) {
+    ImGui::Text("BASS failed to initialize.");
+    ImGui::Spacing();
+    ImGui::TextWrapped("This could be because of your settings (try editing ~/.config/qdalsabass/config.json).");
+    ImGui::Spacing();
+    ImGui::TextWrapped("If you are still unable to launch successfully, create an issue on GitHub including your config.json file and the error code and you should receive support.");
+    ImGui::Spacing();
+    ImGui::TextWrapped("BASS error: %d", bass_failed_modal_msg);
+
+    ImGui::Separator();
+
+    if (ImGui::Button("Exit")) {
+        ImGui::CloseCurrentPopup();
+        global::clean_exit(0);
+    }
+}
+
 void draw_gui(void) {
     int wx, wy;
     SDL_GetWindowSize(sdl_window, &wx, &wy);
@@ -171,11 +220,7 @@ void draw_gui(void) {
                     config_error_modal_msg = "Failed to parse JSON file.";
                     modal::show_modal(CONFIG_ERROR_MODAL_ID);
                 } else {
-                    std::optional<std::string> init_all_out = settings::init_all();
-                    if (init_all_out.has_value()) {
-                        config_error_modal_msg = init_all_out.value();
-                        modal::show_modal(CONFIG_ERROR_MODAL_ID);
-                    }
+                    handle_init_all(settings::init_all());
                 }
             }
             if (ImGui::MenuItem("Save config as...")) {
@@ -240,6 +285,10 @@ void draw_gui(void) {
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Settings")) {
+            ImGui::Combo("Sample rate", &global::settings.sample_rate, settings::sample_rate_strs, settings::sample_rate_count);
+            ImGui::SameLine();
+            warning_marker("This option will only take effect after a restart.");
+
             if (ImGui::SliderFloat("Volume", &global::settings.volume, 0.0f, 1.0f, "%.2f")) {
                 midi::set_volume(global::settings.volume);
             }
@@ -386,9 +435,7 @@ int gui_main(void) {
     ImGui_ImplSDL2_InitForSDLRenderer(sdl_window, sdl_renderer);
     ImGui_ImplSDLRenderer2_Init(sdl_renderer);
 
-    modal::add_modal(ABOUT_MODAL_ID, "About qdalsabass", show_about_modal, ImVec2(320, 0));
-    modal::add_modal(BASS_ERROR_MODAL_ID, "BASS error", show_bass_error_modal, ImVec2(320, 0));
-    modal::add_modal(CONFIG_ERROR_MODAL_ID, "Config error", show_config_error_modal, ImVec2(320, 0));
+    init_from_settings();
 
     while (global::running) {
         SDL_Event sdl_event;

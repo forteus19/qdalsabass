@@ -39,8 +39,9 @@ std::string get_config_home(void) {
 
 std::string get_config_filename(void) {
     std::string config_home = get_config_home();
-    if (!std::filesystem::exists(config_home)) {
-        std::filesystem::create_directory(std::format("{}/qdalsabass", config_home));
+    std::string config_folder = std::format("{}/qdalsabass", config_home);
+    if (!std::filesystem::exists(config_folder)) {
+        std::filesystem::create_directory(config_folder);
     }
 
     return std::format("{}/qdalsabass/config.json", config_home);
@@ -52,6 +53,7 @@ void write_settings(std::string path) {
     jsettings["appearance"] = global::settings.appearance;
     jsettings["volume"] = global::settings.volume;
     jsettings["max_voices"] = global::settings.max_voices;
+    jsettings["sample_rate"] = global::settings.sample_rate;
 
     nlohmann::json jsoundfonts = nlohmann::json::array();
     for (const auto &[sf_path, sf_config] : global::settings.soundfonts) {
@@ -64,6 +66,10 @@ void write_settings(std::string path) {
     jsettings["soundfonts"] = jsoundfonts;
 
     std::ofstream config_outfile(path);
+    if (!config_outfile.is_open()) {
+        fprintf(stderr, "Failed to write config file.\n");
+        return;
+    }
     config_outfile << std::setw(4) << jsettings << std::endl;
 }
 
@@ -88,6 +94,9 @@ bool read_settings(std::string path) {
         }
         if (jsettings.contains("max_voices")) {
             global::settings.max_voices = std::clamp((int)jsettings["max_voices"], 1, 100000);
+        }
+        if (jsettings.contains("sample_rate")) {
+            global::settings.sample_rate = std::clamp((int)jsettings["sample_rate"], 0, sample_rate_count - 1);
         }
 
         if (jsettings.contains("soundfonts")) {

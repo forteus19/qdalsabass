@@ -6,9 +6,12 @@
 
 namespace qdab::gui {
 
-bool is_initialized(void);
+void add_all_modals(void);
+
+void handle_bass_failure(int error_code);
 
 std::optional<std::string> init_from_settings(void);
+void handle_init_all(std::optional<std::string> init_all_out);
 
 int gui_main(void);
 
