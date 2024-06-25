@@ -241,10 +241,7 @@ void *midi_main(void *data) {
 
     bass_stream = BASS_MIDI_StreamCreate(16, BASS_SAMPLE_FLOAT | BASS_MIDI_ASYNC, 1);
 
-    BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_VOL, 0.75);
     BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_BUFFER, 0);
-    BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_MIDI_VOICES, 1000);
-    BASS_ChannelFlags(bass_stream, BASS_MIDI_NOFX, BASS_MIDI_NOFX);
 
     BASS_MIDI_StreamEvent(bass_stream, 0, MIDI_EVENT_SYSTEM, MIDI_SYSTEM_GS);
 

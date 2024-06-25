@@ -449,7 +449,7 @@ int gui_main(void) {
         while (SDL_PollEvent(&sdl_event)) {
             ImGui_ImplSDL2_ProcessEvent(&sdl_event);
             if (sdl_event.type == SDL_QUIT) {
-                global::running = false;
+                global::clean_exit(0);
             }
         }
 
