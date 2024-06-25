@@ -1,3 +1,10 @@
+#
+#   qdalsabass: ALSA sequencer implementation for BASSMIDI.
+#   Copyright (C) 2024  forteus19
+#
+#   See NOTICE.txt for the full notice.
+#
+
 cmake_minimum_required(VERSION 3.28)
 
 set(CMAKE_CXX_STANDARD 20)

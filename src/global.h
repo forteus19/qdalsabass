@@ -1,3 +1,10 @@
+/*
+    qdalsabass: ALSA sequencer implementation for BASSMIDI.
+    Copyright (C) 2024  forteus19
+
+    See NOTICE.txt for the full notice.
+*/
+
 #ifndef _QDAB_GLOBAL_H
 #define _QDAB_GLOBAL_H
 

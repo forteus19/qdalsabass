@@ -1,3 +1,10 @@
+/*
+    qdalsabass: ALSA sequencer implementation for BASSMIDI.
+    Copyright (C) 2024  forteus19
+
+    See NOTICE.txt for the full notice.
+*/
+
 // File: 'Karla-Regular.ttf' (16848 bytes)
 // Exported using binary_to_compressed_c.cpp
 #ifndef _QDAB_FONT_H
