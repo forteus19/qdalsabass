@@ -33,13 +33,6 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 make
 ```
 
-## To-do
-
-- Make the configurator better
-- Turn the program into a daemon that can run in the background
-- Implement an event buffer
-
-
 ## License
 
 qdalsabass is licensed under GPL-3.0.
