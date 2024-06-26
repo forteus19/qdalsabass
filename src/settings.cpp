@@ -61,6 +61,7 @@ void write_settings(std::string path) {
     jsettings["volume"] = global::settings.volume;
     jsettings["max_voices"] = global::settings.max_voices;
     jsettings["sample_rate"] = global::settings.sample_rate;
+    jsettings["ev_buffer_size"] = global::settings.ev_buffer_size;
 
     nlohmann::json jsoundfonts = nlohmann::json::array();
     for (const auto &[sf_path, sf_config] : global::settings.soundfonts) {
@@ -104,6 +105,9 @@ bool read_settings(std::string path) {
         }
         if (jsettings.contains("sample_rate")) {
             global::settings.sample_rate = std::clamp((int)jsettings["sample_rate"], 0, sample_rate_count - 1);
+        }
+        if (jsettings.contains("ev_buffer_size")) {
+            global::settings.ev_buffer_size = std::clamp((int)jsettings["ev_buffer_size"], 1, 262144);
         }
 
         if (jsettings.contains("soundfonts")) {

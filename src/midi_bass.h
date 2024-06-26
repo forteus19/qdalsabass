@@ -5,26 +5,13 @@
     See NOTICE.txt for the full notice.
 */
 
-#ifndef _QDAB_MIDI_H
-#define _QDAB_MIDI_H
+#ifndef _QDAB_MIDI_BASS_H
+#define _QDAB_MIDI_BASS_H
 
 #include <optional>
 #include <string>
 
-#include <alsa/asoundlib.h>
-#include "bass.h"
-#include "bassmidi.h"
-
-#include "midi_bass.h"
-#include "midi_seq.h"
-
-namespace qdab::midi {
-
-typedef snd_seq_event_t event_t;
-
-int get_client_num(void);
-int get_port_num(void);
-bool is_ready(void);
+namespace qdab::midi::bass {
 
 float get_cpu(void);
 int get_active_voices(void);
@@ -41,17 +28,11 @@ int get_bass_error(void);
 
 void gm_reset(void);
 
-bool put_event(event_t *ev);
-bool get_event(event_t *ev);
-
-int get_rhead_pos(void);
-int get_whead_pos(void);
+void stop(void);
 
 std::optional<std::string> init_from_settings(void);
 
-void stop(void);
-
-void init(void);
+void *bass_main(void *data);
 
 }
 

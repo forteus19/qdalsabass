@@ -6,7 +6,6 @@
 */
 
 #include <csignal>
-#include <pthread.h>
 
 #include "global.h"
 #include "gui.h"
@@ -23,9 +22,7 @@ int main(int argc, char** argv) {
 
     gui::add_all_modals();
 
-    pthread_t midi_thread;
-    pthread_create(&midi_thread, NULL, midi::midi_main, NULL);
-    pthread_detach(midi_thread);
+    midi::init();
 
     int gui_result = gui::gui_main();
 

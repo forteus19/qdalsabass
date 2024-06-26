@@ -272,13 +272,14 @@ void draw_gui(void) {
     if (ImGui::BeginTabBar("mainBar")) {
         if (ImGui::BeginTabItem("General")) {
             ImGui::Text("Draw FPS: %.0f", ImGui::GetIO().Framerate);
-            if (midi::get_seq_handle() != NULL) {
+            if (midi::is_ready()) {
                 ImGui::Text("Listening on %d:%d", midi::get_client_num(), midi::get_port_num());
 
                 ImGui::Separator();
 
                 ImGui::Text("Rendering time: %.1f%%", midi::get_cpu());
                 ImGui::Text("Active voices: %d", midi::get_active_voices());
+                ImGui::Text("RH/WH position: %04d/%04d", midi::get_rhead_pos(), midi::get_whead_pos());
 
                 ImGui::Separator();
 
@@ -292,9 +293,16 @@ void draw_gui(void) {
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Settings")) {
+            ImGui::SeparatorText("Non-live settings");
+
             ImGui::Combo("Sample rate", &global::settings.sample_rate, settings::sample_rate_strs, settings::sample_rate_count);
+
+            ImGui::InputInt("Event buffer size", &global::settings.ev_buffer_size);
+            global::settings.ev_buffer_size = std::clamp(global::settings.ev_buffer_size, 1, 262144);
             ImGui::SameLine();
-            warning_marker("This option will only take effect after a restart.");
+            warning_marker("Changing this setting is dangerous. Make sure you know what you are doing!");
+
+            ImGui::SeparatorText("Live settings");
 
             if (ImGui::SliderFloat("Volume", &global::settings.volume, 0.0f, 1.0f, "%.2f")) {
                 midi::set_volume(global::settings.volume);

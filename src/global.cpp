@@ -27,7 +27,7 @@ void clean_exit(int signum) {
             midi::free_font(sf.config.font);
         }
     }
-    midi::stop_bass();
+    midi::stop();
 
     global::running = false;
 }

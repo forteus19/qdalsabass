@@ -38,6 +38,7 @@ typedef struct {
     float volume = 1.0f;
     int max_voices = 1000;
     int sample_rate = 5;
+    int ev_buffer_size = 8192;
 
     std::vector<soundfont_t> soundfonts;
 } settings_t;
