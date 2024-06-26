@@ -26,6 +26,7 @@ static SDL_Window *sdl_window;
 static SDL_Renderer *sdl_renderer;
 
 static bool initialized = false;
+static bool save_settings = true;
 
 static ImFont *imfont;
 static ImFont *imfont_big;
@@ -127,6 +128,10 @@ void handle_init_all(std::optional<std::string> init_all_out) {
     }
 }
 
+bool should_save_settings(void) {
+    return save_settings;
+}
+
 void warning_marker(const char *text) {
     ImGui::TextDisabled("(!)");
     if (ImGui::BeginItemTooltip()) {
@@ -135,6 +140,13 @@ void warning_marker(const char *text) {
         ImGui::PopTextWrapPos();
         ImGui::EndTooltip();
     }
+}
+
+bool slider_percent(const char *label, float *v, float v_min, float v_max, const char *format = "%.0f%%", ImGuiSliderFlags flags = 0) {
+    float perc_value = *v * 100;
+    bool result = ImGui::SliderFloat(label, &perc_value, v_min * 100.0f, v_max * 100.0f, format, flags);
+    *v = perc_value / 100.0f;
+    return result;
 }
 
 void show_about_modal(void) {
@@ -233,6 +245,19 @@ void draw_gui(void) {
             if (ImGui::MenuItem("Save config as...")) {
                 prompt_save_config();
             }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Reset settings")) {
+                settings::reset();
+                handle_init_all(settings::init_all());
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Exit", "Alt+F4")) {
+                global::clean_exit(0);
+            }
+            if (ImGui::MenuItem("Exit without saving settings")) {
+                save_settings = false;
+                global::clean_exit(0);
+            }
 
             ImGui::EndMenu();
         }
@@ -304,13 +329,33 @@ void draw_gui(void) {
 
             ImGui::SeparatorText("Live settings");
 
-            if (ImGui::SliderFloat("Master volume", &global::settings.volume, 0.0f, 1.0f, "%.2f")) {
+            if (slider_percent("Master volume", &global::settings.volume, 0.0f, 1.0f)) {
                 midi::set_volume(global::settings.volume);
+            }
+
+            if (ImGui::SliderFloat("Max rendering time", &global::settings.max_rendering_time, 0.0f, 100.0f, global::settings.max_rendering_time == 0.0f ? "Automatic" : "%.0f%%")) {
+                midi::set_max_cpu(global::settings.max_rendering_time);
             }
 
             if (ImGui::InputInt("Max voices", &global::settings.max_voices)) {
                 global::settings.max_voices = std::clamp(global::settings.max_voices, 1, 100000);
                 midi::set_max_voices(global::settings.max_voices);
+            }
+
+            ImGui::Checkbox("Enable ignore range", &global::settings.enable_ignore_range);
+
+            ImGui::BeginDisabled(!global::settings.enable_ignore_range);
+            ImGui::InputInt2("Ignore range", global::settings.ignore_range);
+            global::settings.ignore_range[0] = std::clamp(global::settings.ignore_range[0], 1, global::settings.ignore_range[1]);
+            global::settings.ignore_range[1] = std::clamp(global::settings.ignore_range[1], global::settings.ignore_range[0], 127);
+            ImGui::EndDisabled();
+
+            if (ImGui::Checkbox("Enable effects", &global::settings.enable_effects)) {
+                midi::set_effects(global::settings.enable_effects);
+            }
+
+            if (ImGui::Checkbox("Release oldest note", &global::settings.release_oldest_note)) {
+                midi::set_ron(global::settings.release_oldest_note);
             }
 
             ImGui::EndTabItem();

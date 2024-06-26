@@ -36,9 +36,14 @@ typedef struct {
         APPEARANCE_CLASSIC = 2
     } appearance = APPEARANCE_DARK;
     float volume = 1.0f;
+    float max_rendering_time = 0.0f;
     int max_voices = 1000;
     int sample_rate = 5;
     int ev_buffer_size = 8192;
+    bool enable_ignore_range = false;
+    int ignore_range[2] = { 1, 1 };
+    bool enable_effects = true;
+    bool release_oldest_note = false;
 
     std::vector<soundfont_t> soundfonts;
 } settings_t;
@@ -49,6 +54,8 @@ void write_settings(std::string path);
 bool read_settings(std::string path);
 
 std::optional<std::string> init_all(void);
+
+void reset(void);
 
 }
 

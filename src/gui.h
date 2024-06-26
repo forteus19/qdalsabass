@@ -20,6 +20,8 @@ void handle_bass_failure(int error_code);
 std::optional<std::string> init_from_settings(void);
 void handle_init_all(std::optional<std::string> init_all_out);
 
+bool should_save_settings(void);
+
 int gui_main(void);
 
 }

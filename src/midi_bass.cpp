@@ -43,8 +43,20 @@ void set_volume(float volume) {
     BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_MIDI_VOL, volume);
 }
 
+void set_max_cpu(float cpu) {
+    BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_MIDI_CPU, cpu);
+}
+
 void set_max_voices(int voices) {
     BASS_ChannelSetAttribute(bass_stream, BASS_ATTRIB_MIDI_VOICES, (float)voices);
+}
+
+void set_effects(bool enable) {
+    BASS_ChannelFlags(bass_stream, enable ? 0 : BASS_MIDI_NOFX, BASS_MIDI_NOFX);
+}
+
+void set_ron(bool enable) {
+    BASS_ChannelFlags(bass_stream, enable ? BASS_MIDI_NOTEOFF1 : 0, BASS_MIDI_NOTEOFF1);
 }
 
 int add_soundfont(std::string path, int preset, int bank) {
@@ -124,7 +136,10 @@ void stop(void) {
 
 std::optional<std::string> init_from_settings() {
     set_volume(global::settings.volume);
+    set_max_cpu(global::settings.max_rendering_time);
     set_max_voices(global::settings.max_voices);
+    set_effects(global::settings.enable_effects);
+    set_ron(global::settings.release_oldest_note);
     if (!init_soundfonts()) {
         reload_soundfonts();
         return "One or more soundfonts failed to load.";

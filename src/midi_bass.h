@@ -17,7 +17,10 @@ float get_cpu(void);
 int get_active_voices(void);
 
 void set_volume(float volume);
+void set_max_cpu(float cpu);
 void set_max_voices(int voices);
+void set_effects(bool enable);
+void set_ron(bool enable);
 
 int add_soundfont(std::string path, int preset, int bank);
 bool init_soundfonts(void);

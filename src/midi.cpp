@@ -22,58 +22,6 @@ static int ev_buffer_size;
 static std::atomic<int> ev_rhead = 0;
 static std::atomic<int> ev_whead = 0;
 
-int get_client_num(void) {
-    return seq::get_client_num();
-}
-
-int get_port_num(void) {
-    return seq::get_port_num();
-}
-
-bool is_ready(void) {
-    return seq::is_ready();
-}
-
-float get_cpu(void) {
-    return bass::get_cpu();
-}
-
-int get_active_voices(void) {
-    return bass::get_active_voices();
-}
-
-void set_volume(float volume) {
-    return bass::set_volume(volume);
-}
-
-void set_max_voices(int voices) {
-    return bass::set_max_voices(voices);
-}
-
-int add_soundfont(std::string path, int preset, int bank) {
-    return bass::add_soundfont(path, preset, bank);
-}
-
-bool init_soundfonts(void) {
-    return bass::init_soundfonts();
-}
-
-int reload_soundfonts(void) {
-    return bass::reload_soundfonts();
-}
-
-void free_font(int font) {
-    return bass::free_font(font);
-}
-
-int get_bass_error(void) {
-    return bass::get_bass_error();
-}
-
-void gm_reset(void) {
-    return bass::gm_reset();
-}
-
 bool put_event(event_t *ev) {
     if ((ev_whead + 1) % ev_buffer_size == ev_rhead) {
         return false;

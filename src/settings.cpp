@@ -62,6 +62,11 @@ void write_settings(std::string path) {
     jsettings["max_voices"] = global::settings.max_voices;
     jsettings["sample_rate"] = global::settings.sample_rate;
     jsettings["ev_buffer_size"] = global::settings.ev_buffer_size;
+    jsettings["enable_ignore_range"] = global::settings.enable_ignore_range;
+    jsettings["ignore_range"]["low"] = global::settings.ignore_range[0];
+    jsettings["ignore_range"]["high"] = global::settings.ignore_range[1];
+    jsettings["enable_effects"] = global::settings.enable_effects;
+    jsettings["release_oldest_note"] = global::settings.release_oldest_note;
 
     nlohmann::json jsoundfonts = nlohmann::json::array();
     for (const auto &[sf_path, sf_config] : global::settings.soundfonts) {
@@ -109,6 +114,26 @@ bool read_settings(std::string path) {
         if (jsettings.contains("ev_buffer_size")) {
             global::settings.ev_buffer_size = std::clamp((int)jsettings["ev_buffer_size"], 1, 262144);
         }
+        if (jsettings.contains("enable_ignore_range")) {
+            global::settings.enable_ignore_range = jsettings["enable_ignore_range"];
+        }
+        if (jsettings.contains("ignore_range")) {
+            nlohmann::json jignore_range = jsettings["ignore_range"];
+            if (jignore_range.contains("low")) {
+                global::settings.ignore_range[0] = jignore_range["low"];
+            }
+            if (jignore_range.contains("high")) {
+                global::settings.ignore_range[0] = jignore_range["high"];
+            }
+            global::settings.ignore_range[0] = std::clamp(global::settings.ignore_range[0], 1, global::settings.ignore_range[1]);
+            global::settings.ignore_range[1] = std::clamp(global::settings.ignore_range[1], global::settings.ignore_range[0], 127);
+        }
+        if (jsettings.contains("enable_effects")) {
+            global::settings.enable_effects = jsettings["enable_effects"];
+        }
+        if (jsettings.contains("release_oldest_note")) {
+            global::settings.release_oldest_note = jsettings["release_oldest_note"];
+        }
 
         if (jsettings.contains("soundfonts")) {
             for (auto jsf : jsettings["soundfonts"]) {
@@ -151,6 +176,10 @@ std::optional<std::string> init_all(void) {
     } else {
         return error_out;
     }
+}
+
+void reset(void) {
+    global::settings = settings_t();
 }
 
 }

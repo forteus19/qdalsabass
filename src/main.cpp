@@ -26,7 +26,9 @@ int main(int argc, char** argv) {
 
     int gui_result = gui::gui_main();
 
-    settings::write_settings(settings::get_config_filename());
+    if (gui::should_save_settings()) {
+        settings::write_settings(settings::get_config_filename());
+    }
     
     global::clean_exit(0);
     return gui_result;

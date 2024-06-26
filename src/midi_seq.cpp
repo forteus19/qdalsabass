@@ -36,6 +36,23 @@ std::optional<std::string> init_from_settings(void) {
     return std::nullopt;
 }
 
+bool within_filter(event_t *ev) {
+    if (!global::settings.enable_ignore_range) {
+        return true;
+    }
+    if (ev->type != SND_SEQ_EVENT_NOTEON) {
+        return true;
+    }
+    if (ev->data.note.velocity == 0) {
+        return true;
+    }
+    if (ev->data.note.velocity >= global::settings.ignore_range[0] && ev->data.note.velocity <= global::settings.ignore_range[1]) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
 void seq_main(void) {
     snd_seq_open(&seq_handle, "default", SND_SEQ_OPEN_INPUT, 0);
     snd_seq_set_client_name(seq_handle, "qdalsabass");
@@ -52,7 +69,9 @@ void seq_main(void) {
         while (snd_seq_event_input(seq_handle, &ev) < 0) {
             std::this_thread::yield();
         }
-        midi::put_event(ev);
+        if (within_filter(ev)) {
+            midi::put_event(ev);
+        }
     }
 }
 
