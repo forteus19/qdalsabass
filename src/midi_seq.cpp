@@ -7,7 +7,7 @@
 
 #include "midi_seq.h"
 
-#include <cstdio>
+#include <thread>
 
 #include "global.h"
 #include "midi.h"
@@ -49,9 +49,10 @@ void seq_main(void) {
 
     event_t *ev = NULL;
     while (global::running) {
-        while (snd_seq_event_input(seq_handle, &ev) >= 0) {
-            midi::put_event(ev);
+        while (snd_seq_event_input(seq_handle, &ev) < 0) {
+            std::this_thread::yield();
         }
+        midi::put_event(ev);
     }
 }
 

@@ -304,7 +304,7 @@ void draw_gui(void) {
 
             ImGui::SeparatorText("Live settings");
 
-            if (ImGui::SliderFloat("Volume", &global::settings.volume, 0.0f, 1.0f, "%.2f")) {
+            if (ImGui::SliderFloat("Master volume", &global::settings.volume, 0.0f, 1.0f, "%.2f")) {
                 midi::set_volume(global::settings.volume);
             }
 

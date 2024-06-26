@@ -7,7 +7,8 @@
 
 #include "midi_bass.h"
 
-#include <cstdio>
+#include <chrono>
+#include <thread>
 
 #include "bass.h"
 #include "bassmidi.h"
@@ -228,9 +229,11 @@ void bass_main(void) {
 
     event_t ev;
     while (global::running) {
-        while (midi::get_event(&ev)) {
-            stream_event(&ev);
+        while (!midi::get_event(&ev)) {
+            std::this_thread::yield();
+            std::this_thread::sleep_for(std::chrono::microseconds(20));
         }
+        stream_event(&ev);
     }
 }
 
