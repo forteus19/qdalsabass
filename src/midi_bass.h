@@ -32,7 +32,7 @@ void stop(void);
 
 std::optional<std::string> init_from_settings(void);
 
-void *bass_main(void *data);
+void bass_main(void);
 
 }
 

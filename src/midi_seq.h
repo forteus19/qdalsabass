@@ -23,7 +23,7 @@ void stop(void);
 
 std::optional<std::string> init_from_settings(void);
 
-void *seq_main(void *data);
+void seq_main(void);
 
 }
 

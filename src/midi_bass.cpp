@@ -204,16 +204,16 @@ void stream_event(event_t *ev) {
 
 }
 
-void *bass_main(void *data) {
+void bass_main(void) {
     if (HIWORD(BASS_GetVersion()) != BASSVERSION) {
         fprintf(stderr, "BASS version mismatch");
         global::clean_exit(0);
-        return NULL;
+        return;
     }
 
     if (!BASS_Init(-1, settings::sample_rate_vals[global::settings.sample_rate], 0, NULL, NULL)) {
         gui::handle_bass_failure(BASS_ErrorGetCode());
-        return NULL;
+        return;
     }
 
     bass_stream = BASS_MIDI_StreamCreate(16, BASS_SAMPLE_FLOAT | BASS_MIDI_ASYNC, 1);
@@ -232,8 +232,6 @@ void *bass_main(void *data) {
             stream_event(&ev);
         }
     }
-
-    return NULL;
 }
 
 }

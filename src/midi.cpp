@@ -126,6 +126,9 @@ void init(void) {
     ev_buffer = new event_t[ev_buffer_size];
 
     std::thread bass_thread(bass::bass_main);
+    bass_thread.detach();
+    std::thread seq_thread(seq::seq_main);
+    seq_thread.detach();
 }
 
 }

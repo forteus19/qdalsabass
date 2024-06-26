@@ -36,7 +36,7 @@ std::optional<std::string> init_from_settings(void) {
     return std::nullopt;
 }
 
-void *seq_main(void *data) {
+void seq_main(void) {
     snd_seq_open(&seq_handle, "default", SND_SEQ_OPEN_INPUT, 0);
     snd_seq_set_client_name(seq_handle, "qdalsabass");
 
@@ -53,8 +53,6 @@ void *seq_main(void *data) {
             midi::put_event(ev);
         }
     }
-
-    return NULL;
 }
 
 }
