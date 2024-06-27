@@ -8,6 +8,7 @@
 #include "gui.h"
 
 #include <algorithm>
+#include <format>
 
 #include "font.h"
 #include "imgui.h"
@@ -145,6 +146,13 @@ void warning_marker(const char *text) {
 bool slider_percent(const char *label, float *v, float v_min, float v_max, const char *format = "%.0f%%", ImGuiSliderFlags flags = 0) {
     float perc_value = *v * 100;
     bool result = ImGui::SliderFloat(label, &perc_value, v_min * 100.0f, v_max * 100.0f, format, flags);
+    *v = perc_value / 100.0f;
+    return result;
+}
+
+bool v_slider_percent(const char *label, const ImVec2 &size, float *v, float v_min, float v_max, const char *format = "%.0f%%", ImGuiSliderFlags flags = 0) {
+    float perc_value = *v * 100;
+    bool result = ImGui::VSliderFloat(label, size, &perc_value, v_min * 100.0f, v_max * 100.0f, format, flags);
     *v = perc_value / 100.0f;
     return result;
 }
@@ -317,49 +325,6 @@ void draw_gui(void) {
 
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Settings")) {
-            ImGui::SeparatorText("Non-live settings");
-
-            ImGui::Combo("Sample rate", &global::settings.sample_rate, settings::sample_rate_strs, settings::sample_rate_count);
-
-            ImGui::InputInt("Event buffer size", &global::settings.ev_buffer_size);
-            global::settings.ev_buffer_size = std::clamp(global::settings.ev_buffer_size, 1, 262144);
-            ImGui::SameLine();
-            warning_marker("Changing this setting is dangerous. Make sure you know what you are doing!");
-
-            ImGui::SeparatorText("Live settings");
-
-            if (slider_percent("Master volume", &global::settings.volume, 0.0f, 1.0f)) {
-                midi::set_volume(global::settings.volume);
-            }
-
-            if (ImGui::SliderFloat("Max rendering time", &global::settings.max_rendering_time, 0.0f, 100.0f, global::settings.max_rendering_time == 0.0f ? "Automatic" : "%.0f%%")) {
-                midi::set_max_cpu(global::settings.max_rendering_time);
-            }
-
-            if (ImGui::InputInt("Max voices", &global::settings.max_voices)) {
-                global::settings.max_voices = std::clamp(global::settings.max_voices, 1, 100000);
-                midi::set_max_voices(global::settings.max_voices);
-            }
-
-            ImGui::Checkbox("Enable ignore range", &global::settings.enable_ignore_range);
-
-            ImGui::BeginDisabled(!global::settings.enable_ignore_range);
-            ImGui::InputInt2("Ignore range", global::settings.ignore_range);
-            global::settings.ignore_range[0] = std::clamp(global::settings.ignore_range[0], 1, global::settings.ignore_range[1]);
-            global::settings.ignore_range[1] = std::clamp(global::settings.ignore_range[1], global::settings.ignore_range[0], 127);
-            ImGui::EndDisabled();
-
-            if (ImGui::Checkbox("Enable effects", &global::settings.enable_effects)) {
-                midi::set_effects(global::settings.enable_effects);
-            }
-
-            if (ImGui::Checkbox("Release oldest note", &global::settings.release_oldest_note)) {
-                midi::set_ron(global::settings.release_oldest_note);
-            }
-
-            ImGui::EndTabItem();
-        }
         if (ImGui::BeginTabItem("Soundfonts")) {
             if (ImGui::Button("Add soundfont")) {
                 if (prompt_soundfont() != 0) {
@@ -440,6 +405,76 @@ void draw_gui(void) {
         } else {
             selected_soundfont_row = -1;
         }
+        if (ImGui::BeginTabItem("Settings")) {
+            ImGui::SeparatorText("Non-live settings");
+
+            ImGui::Combo("Sample rate", &global::settings.sample_rate, settings::sample_rate_strs, settings::sample_rate_count);
+
+            ImGui::InputInt("Event buffer size", &global::settings.ev_buffer_size);
+            global::settings.ev_buffer_size = std::clamp(global::settings.ev_buffer_size, 1, 262144);
+            ImGui::SameLine();
+            warning_marker("Changing this setting is dangerous. Make sure you know what you are doing!");
+
+            ImGui::SeparatorText("Live settings");
+
+            if (slider_percent("Master volume", &global::settings.volume, 0.0f, 1.0f)) {
+                midi::set_volume(global::settings.volume);
+            }
+
+            if (ImGui::SliderFloat("Max rendering time", &global::settings.max_rendering_time, 0.0f, 100.0f, global::settings.max_rendering_time == 0.0f ? "Automatic" : "%.0f%%")) {
+                midi::set_max_cpu(global::settings.max_rendering_time);
+            }
+
+            if (ImGui::InputInt("Max voices", &global::settings.max_voices)) {
+                global::settings.max_voices = std::clamp(global::settings.max_voices, 1, 100000);
+                midi::set_max_voices(global::settings.max_voices);
+            }
+
+            ImGui::Checkbox("Enable ignore range", &global::settings.enable_ignore_range);
+
+            ImGui::BeginDisabled(!global::settings.enable_ignore_range);
+            ImGui::InputInt2("Ignore range", global::settings.ignore_range);
+            global::settings.ignore_range[0] = std::clamp(global::settings.ignore_range[0], 1, global::settings.ignore_range[1]);
+            global::settings.ignore_range[1] = std::clamp(global::settings.ignore_range[1], global::settings.ignore_range[0], 127);
+            ImGui::EndDisabled();
+
+            if (ImGui::Checkbox("Enable effects", &global::settings.enable_effects)) {
+                midi::set_effects(global::settings.enable_effects);
+            }
+
+            if (ImGui::Checkbox("Release oldest note", &global::settings.release_oldest_note)) {
+                midi::set_ron(global::settings.release_oldest_note);
+            }
+
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Mixer")) {
+            if (ImGui::Button("Set all to 100%")) {
+                for (int i = 0; i < 16; i++) {
+                    global::settings.channel_volumes[i] = 1.0f;
+                    midi::set_channel_volume(i, 1.0f);
+                }
+            }
+
+            if (ImGui::BeginTable("mixerTable", 8, ImGuiTableFlags_Borders, ImVec2(-1.0f, 0.0f))) {
+                for (int i = 0; i < 8; i++) {
+                    ImGui::TableNextColumn();
+                    if (v_slider_percent(std::format("#{}##vol{}", i + 1, i).c_str(), ImVec2(40, 160), &global::settings.channel_volumes[i], 0.0f, 1.0f)) {
+                        midi::set_channel_volume(i, global::settings.channel_volumes[i]);
+                    }
+                }
+                ImGui::TableNextRow();
+                for (int i = 8; i < 16; i++) {
+                    ImGui::TableNextColumn();
+                    if (v_slider_percent(std::format("#{}##vol{}", i + 1, i).c_str(), ImVec2(40, 160), &global::settings.channel_volumes[i], 0.0f, 1.0f)) {
+                        midi::set_channel_volume(i, global::settings.channel_volumes[i]);
+                    }
+                }
+
+                ImGui::EndTable();
+            }
+        }
+        
         ImGui::EndTabBar();
     }
     

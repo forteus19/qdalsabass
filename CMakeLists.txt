@@ -28,6 +28,8 @@ add_library(
 )
 
 find_package(SDL2 REQUIRED)
+find_package(spdlog REQUIRED)
+add_compile_definitions(FMT_HEADER_ONLY)
 
 target_include_directories(imgui PRIVATE submodules/imgui)
 target_include_directories(imgui PRIVATE ${SDL2_INCLUDE_DIRS})
@@ -54,4 +56,5 @@ target_link_libraries(qdalsabass PRIVATE SDL2)
 target_link_libraries(qdalsabass PRIVATE imgui)
 target_link_libraries(qdalsabass PRIVATE pfd)
 target_link_libraries(qdalsabass PRIVATE nlohmann_json)
+target_link_libraries(qdalsabass PRIVATE spdlog)
 target_link_libraries(qdalsabass PRIVATE ${LIBS})

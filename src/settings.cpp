@@ -68,6 +68,12 @@ void write_settings(std::string path) {
     jsettings["enable_effects"] = global::settings.enable_effects;
     jsettings["release_oldest_note"] = global::settings.release_oldest_note;
 
+    nlohmann::json jchannel_volumes = nlohmann::json::array();
+    for (int i = 0; i < 16; i++) {
+        jchannel_volumes.push_back(global::settings.channel_volumes[i]);
+    }
+    jsettings["channel_volumes"] = jchannel_volumes;
+
     nlohmann::json jsoundfonts = nlohmann::json::array();
     for (const auto &[sf_path, sf_config] : global::settings.soundfonts) {
         jsoundfonts.push_back({
@@ -133,6 +139,13 @@ bool read_settings(std::string path) {
         }
         if (jsettings.contains("release_oldest_note")) {
             global::settings.release_oldest_note = jsettings["release_oldest_note"];
+        }
+
+        if (jsettings.contains("channel_volumes")) {
+            nlohmann::json jchannel_volumes = jsettings["channel_volumes"];
+            for (int i = 0; i < 16; i++) {
+                global::settings.channel_volumes[i] = jchannel_volumes[i];
+            }
         }
 
         if (jsettings.contains("soundfonts")) {

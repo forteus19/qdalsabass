@@ -22,6 +22,8 @@ void set_max_voices(int voices);
 void set_effects(bool enable);
 void set_ron(bool enable);
 
+void set_channel_volume(int channel, float volume);
+
 int add_soundfont(std::string path, int preset, int bank);
 bool init_soundfonts(void);
 int reload_soundfonts(void);

@@ -44,6 +44,7 @@ typedef struct {
     int ignore_range[2] = { 1, 1 };
     bool enable_effects = true;
     bool release_oldest_note = false;
+    float channel_volumes[16] = { 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1 };
 
     std::vector<soundfont_t> soundfonts;
 } settings_t;

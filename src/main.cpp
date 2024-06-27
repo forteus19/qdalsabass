@@ -6,6 +6,10 @@
 */
 
 #include <csignal>
+#include <cstring>
+
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #include "global.h"
 #include "gui.h"
@@ -14,9 +18,28 @@
 
 namespace qdab::main {
 
-int main(int argc, char** argv) {
+void handle_args(int argc, char **argv) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--debug") == 0) {
+            spdlog::set_level(spdlog::level::debug);
+        }
+        if (strcmp(argv[i], "--trace") == 0) {
+            spdlog::set_level(spdlog::level::trace);
+        }
+    }
+}
+
+int main(int argc, char **argv) {
     signal(SIGINT, global::clean_exit);
     signal(SIGTERM, global::clean_exit);
+
+    auto stdout_logger = spdlog::stdout_color_mt("stdout_logger");
+    auto stderr_logger = spdlog::stderr_color_mt("stderr_logger");
+
+    stdout_logger->set_pattern("[%Y-%m-%d %T.%e] [%t] [%^%l%$] %v");
+    stderr_logger->set_pattern("[%Y-%m-%d %T.%e] [%t] [%^%l%$] (%s:%#) %v");
+
+    handle_args(argc, argv);
 
     settings::read_settings(settings::get_config_filename());
 
