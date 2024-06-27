@@ -506,7 +506,8 @@ void draw_gui(void) {
 
 int gui_main(void) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
-        fprintf(stderr, "SDL_Init error: %s\n", SDL_GetError());
+        QDAB_CRIT("SDL_Init() failed!");
+        QDAB_CRIT("Error: {}", SDL_GetError());
         global::clean_exit(0);
         return 1;
     }
@@ -523,7 +524,8 @@ int gui_main(void) {
         SDL_WINDOW_RESIZABLE
     );
     if (sdl_window == NULL) {
-        fprintf(stderr, "SDL_CreateWindow error: %s\n", SDL_GetError());
+        QDAB_CRIT("SDL_CreateWindow() failed!");
+        QDAB_CRIT("Error: {}", SDL_GetError());
         global::clean_exit(0);
         return 1;
     }
@@ -533,7 +535,8 @@ int gui_main(void) {
         SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED
     );
     if (sdl_renderer == NULL) {
-        fprintf(stderr, "SDL_CreateRenderer error: %s\n", SDL_GetError());
+        QDAB_CRIT("SDL_CreateRenderer() failed!");
+        QDAB_CRIT("Error: {}", SDL_GetError());
         global::clean_exit(0);
         return 1;
     }

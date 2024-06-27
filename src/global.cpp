@@ -22,6 +22,7 @@ void clean_exit(int signum) {
     if (!global::running) {
         return;
     }
+    QDAB_INFO("Exiting normally.");
     for (auto const &sf : global::settings.soundfonts) {
         if (sf.config.font != 0) {
             midi::free_font(sf.config.font);

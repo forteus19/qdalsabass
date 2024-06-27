@@ -68,7 +68,7 @@ void set_ron(bool enable) {
 void set_channel_volume(int channel, float volume) {
     if (channel < 16) {
         if (!BASS_ChannelSetAttribute(bass_channel_streams[channel], BASS_ATTRIB_VOLDSP, volume)) {
-            fprintf(stderr, "BASS error: %d\n", BASS_ErrorGetCode());
+            QDAB_ERROR("BASS_ChannelSetAttribute() error: {}", BASS_ErrorGetCode());
         }
     }
 }
@@ -103,7 +103,7 @@ int add_soundfont(std::string path, int preset, int bank) {
     sf_config.font = BASS_MIDI_FontInit(path.c_str(), 0);
     if (sf_config.font == 0) {
         last_bass_error = BASS_ErrorGetCode();
-        fprintf(stderr, "BASS error: %d\n", last_bass_error);
+        QDAB_ERROR("BASS_MIDI_FontInit() error: {}", last_bass_error);
         return last_bass_error;
     }
     sf_config.preset = -1;
@@ -129,7 +129,7 @@ bool init_soundfonts(void) {
     for (auto sf = global::settings.soundfonts.begin(); sf != global::settings.soundfonts.end(); ) {
         sf->config.font = BASS_MIDI_FontInit(sf->path.c_str(), 0);
         if (sf->config.font == 0) {
-            fprintf(stderr, "BASS error: %d\n", BASS_ErrorGetCode());
+            QDAB_ERROR("BASS_MIDI_FontInit() error: {}", BASS_ErrorGetCode());
             sf = global::settings.soundfonts.erase(sf);
             all_loaded = false;
         } else {
@@ -148,7 +148,7 @@ int reload_soundfonts(void) {
 
     if (!BASS_MIDI_StreamSetFonts(bass_master_stream, fonts, global::settings.soundfonts.size())) {
         last_bass_error = BASS_ErrorGetCode();
-        fprintf(stderr, "BASS error: %d\n", last_bass_error);
+        QDAB_ERROR("BASS_MIDI_StreamSetFonts() error: {}", last_bass_error);
         return last_bass_error;
     }
 
@@ -183,6 +183,7 @@ std::optional<std::string> init_from_settings() {
     update_limiter_settings();
     if (!init_soundfonts()) {
         reload_soundfonts();
+        QDAB_WARN("Some soundfonts failed to load!");
         return "One or more soundfonts failed to load.";
     }
     reload_soundfonts();
@@ -298,15 +299,24 @@ void bass_main(void) {
     BASS_SetConfig(BASS_CONFIG_UPDATETHREADS, concurrency);
 
     if (!BASS_Init(-1, settings::sample_rate_vals[global::settings.sample_rate], 0, NULL, NULL)) {
-        QDAB_CRIT("BASS_Init failed!");
-        QDAB_CRIT("Parameters: (-1, {}, 0, NULL, NULL)", settings::sample_rate_vals[global::settings.sample_rate]);
+        QDAB_CRIT("BASS_Init() failed!");
+        QDAB_CRIT("Error: {}", BASS_ErrorGetCode());
         gui::handle_bass_failure(BASS_ErrorGetCode());
         return;
     }
 
     bass_master_stream = BASS_MIDI_StreamCreate(16, BASS_SAMPLE_FLOAT | BASS_MIDI_ASYNC, 0);
+    if (bass_master_stream == 0) {
+        QDAB_CRIT("Failed to create master stream!");
+        QDAB_CRIT("Error: {}", BASS_ErrorGetCode());
+        gui::handle_bass_failure(BASS_ErrorGetCode());
+        return;
+    }
     for (int i = 0; i < 16; i++) {
         bass_channel_streams[i] = BASS_MIDI_StreamGetChannel(bass_master_stream, i);
+        if (bass_channel_streams[i] == 0) {
+            QDAB_WARN("Failed to get HSTREAM for channel {}", i + 1);
+        }
     }
 
     BASS_ChannelSetAttribute(bass_master_stream, BASS_ATTRIB_BUFFER, 0);

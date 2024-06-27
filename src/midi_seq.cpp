@@ -64,6 +64,8 @@ void seq_main(void) {
         SND_SEQ_PORT_TYPE_APPLICATION
     );
 
+    QDAB_INFO("Assigned client/port = {}:{}", snd_seq_client_id(seq_handle), seq_port);
+
     event_t *ev = NULL;
     while (global::running) {
         while (snd_seq_event_input(seq_handle, &ev) < 0) {

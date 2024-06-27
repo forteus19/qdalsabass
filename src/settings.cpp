@@ -92,7 +92,7 @@ void write_settings(std::string path) {
 
     std::ofstream config_outfile(path);
     if (!config_outfile.is_open()) {
-        fprintf(stderr, "Failed to write config file.\n");
+        QDAB_ERROR("Failed to write config file");
         return;
     }
     config_outfile << std::setw(4) << jsettings << std::endl;
@@ -196,7 +196,7 @@ bool read_settings(std::string path) {
             }
         }
     } catch (std::exception e) {
-        fprintf(stderr, "Parse error: %s\n", e.what());
+        QDAB_ERROR("JSON parse error: {}", e.what());
         return false;
     }
 

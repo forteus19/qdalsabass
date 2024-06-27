@@ -10,6 +10,8 @@
 #include <cstdio>
 #include <unordered_map>
 
+#include "global.h"
+
 namespace qdab::modal {
 
 typedef struct {
@@ -28,7 +30,7 @@ void add_modal(int id, std::string name, void (*callback)(void), const ImVec2 &s
 
 void show_modal(int id) {
     if (!modals.contains(id)) {
-        fprintf(stderr, "Invalid modal: %d\n", id);
+        QDAB_WARN("Invalid modal: {}", id);
         return;
     }
     modals.at(id).show = true;
