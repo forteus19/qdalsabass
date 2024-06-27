@@ -14,12 +14,12 @@ Grab required dependencies:
 
 Ubuntu:
 ```
-sudo apt install git cmake make-dfsg alsa-lib libsdl2
+sudo apt install git make cmake libasound2-dev libsdl2-dev libspdlog-dev
 ```
 
 Fedora:
 ```
-sudo dnf install git cmake alsa-lib-devel SDL2-devel
+sudo dnf install git make cmake alsa-lib-devel SDL2-devel spdlog-devel
 ```
 
 Then qdalsabass can be compiled by using basic git and CMake commands:
