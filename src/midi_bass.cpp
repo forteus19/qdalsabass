@@ -9,10 +9,12 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <thread>
 
 #include "bass.h"
 #include "bassmidi.h"
+#include "bass_fx.h"
 #include <spdlog/spdlog.h>
 
 #include "midi.h"
@@ -24,6 +26,7 @@ namespace qdab::midi::bass {
 
 static HSTREAM bass_master_stream;
 static HSTREAM bass_channel_streams[16];
+static HFX limiter_handle = 0;
 
 static int rpn_params[16];
 static int rpn_vals[16];
@@ -67,6 +70,31 @@ void set_channel_volume(int channel, float volume) {
         if (!BASS_ChannelSetAttribute(bass_channel_streams[channel], BASS_ATTRIB_VOLDSP, volume)) {
             fprintf(stderr, "BASS error: %d\n", BASS_ErrorGetCode());
         }
+    }
+}
+
+void set_limiter(bool enable) {
+    if (enable) {
+        limiter_handle = BASS_ChannelSetFX(bass_master_stream, BASS_FX_BFX_COMPRESSOR2, 0);
+    } else if (limiter_handle != 0) {
+        BASS_ChannelRemoveFX(bass_master_stream, limiter_handle);
+        limiter_handle = 0;
+    }
+}
+
+void update_limiter_settings(void) {
+    if (limiter_handle == 0) {
+        return;
+    }
+    BASS_BFX_COMPRESSOR2 fx_config;
+    fx_config.fGain = global::settings.limiter.gain;
+    fx_config.fThreshold = global::settings.limiter.threshold;
+    fx_config.fRatio = global::settings.limiter.ratio;
+    fx_config.fAttack = global::settings.limiter.attack;
+    fx_config.fRelease = global::settings.limiter.release;
+    fx_config.lChannel = BASS_BFX_CHANALL;
+    if (!BASS_FXSetParameters(limiter_handle, &fx_config)) {
+        QDAB_ERROR("BASS_FX error: {}", BASS_ErrorGetCode());
     }
 }
 
@@ -151,6 +179,8 @@ std::optional<std::string> init_from_settings() {
     set_max_voices(global::settings.max_voices);
     set_effects(global::settings.enable_effects);
     set_ron(global::settings.release_oldest_note);
+    set_limiter(global::settings.limiter.enable);
+    update_limiter_settings();
     if (!init_soundfonts()) {
         reload_soundfonts();
         return "One or more soundfonts failed to load.";
@@ -244,11 +274,21 @@ void stream_event(event_t *ev) {
 }
 
 void bass_main(void) {
-    QDAB_TRACE("BASS library version: {}", HIWORD(BASS_GetVersion()));
+    DWORD bass_version = BASS_GetVersion();
+    DWORD bass_fx_version = BASS_FX_GetVersion();
+
+    QDAB_TRACE("BASS library version: {}.{}", HIWORD(bass_version), LOWORD(bass_version));
+    QDAB_TRACE("BASS_FX library version: {}.{}", HIWORD(bass_fx_version), LOWORD(bass_fx_version));
     QDAB_TRACE("BASS header version: {}", BASSVERSION);
 
-    if (HIWORD(BASS_GetVersion()) != BASSVERSION) {
+    if (HIWORD(bass_version) != BASSVERSION || LOWORD(bass_version) < 0x100) {
         QDAB_CRIT("BASS version mismatch!");
+        global::clean_exit(0);
+        return;
+    }
+
+    if (HIWORD(bass_fx_version) != BASSVERSION || LOWORD(bass_fx_version) < 0x100) {
+        QDAB_CRIT("BASS_FX version mismatch!");
         global::clean_exit(0);
         return;
     }

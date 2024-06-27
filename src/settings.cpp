@@ -55,32 +55,38 @@ std::string get_config_filename(void) {
 }
 
 void write_settings(std::string path) {
-    nlohmann::json jsettings;
+    nlohmann::ordered_json jsettings;
 
     jsettings["appearance"] = global::settings.appearance;
     jsettings["volume"] = global::settings.volume;
     jsettings["max_voices"] = global::settings.max_voices;
     jsettings["sample_rate"] = global::settings.sample_rate;
     jsettings["ev_buffer_size"] = global::settings.ev_buffer_size;
-    jsettings["enable_ignore_range"] = global::settings.enable_ignore_range;
+    jsettings["ignore_range"]["enable"] = global::settings.ignore_range.enable;
     jsettings["ignore_range"]["low"] = global::settings.ignore_range[0];
     jsettings["ignore_range"]["high"] = global::settings.ignore_range[1];
     jsettings["enable_effects"] = global::settings.enable_effects;
     jsettings["release_oldest_note"] = global::settings.release_oldest_note;
+    jsettings["limiter"]["enable"] = global::settings.limiter.enable;
+    jsettings["limiter"]["gain"] = global::settings.limiter.gain;
+    jsettings["limiter"]["threshold"] = global::settings.limiter.threshold;
+    jsettings["limiter"]["ratio"] = global::settings.limiter.ratio;
+    jsettings["limiter"]["attack"] = global::settings.limiter.attack;
+    jsettings["limiter"]["release"] = global::settings.limiter.release;
 
-    nlohmann::json jchannel_volumes = nlohmann::json::array();
+    nlohmann::ordered_json jchannel_volumes = nlohmann::ordered_json::array();
     for (int i = 0; i < 16; i++) {
         jchannel_volumes.push_back(global::settings.channel_volumes[i]);
     }
     jsettings["channel_volumes"] = jchannel_volumes;
 
-    nlohmann::json jsoundfonts = nlohmann::json::array();
+    nlohmann::ordered_json jsoundfonts = nlohmann::ordered_json::array();
     for (const auto &[sf_path, sf_config] : global::settings.soundfonts) {
-        jsoundfonts.push_back({
-            { "path", sf_path },
-            { "preset", sf_config.preset },
-            { "bank", sf_config.bank }
-        });
+        nlohmann::ordered_json jsf;
+        jsf["path"] = sf_path;
+        jsf["preset"] = sf_config.preset;
+        jsf["bank"] = sf_config.bank;
+        jsoundfonts.push_back(jsf);
     }
     jsettings["soundfonts"] = jsoundfonts;
 
@@ -120,11 +126,14 @@ bool read_settings(std::string path) {
         if (jsettings.contains("ev_buffer_size")) {
             global::settings.ev_buffer_size = std::clamp((int)jsettings["ev_buffer_size"], 1, 262144);
         }
-        if (jsettings.contains("enable_ignore_range")) {
-            global::settings.enable_ignore_range = jsettings["enable_ignore_range"];
+        if (jsettings.contains("enable_ignore_range")) {  // Compatibility
+            global::settings.ignore_range.enable = jsettings["enable_ignore_range"];
         }
         if (jsettings.contains("ignore_range")) {
             nlohmann::json jignore_range = jsettings["ignore_range"];
+            if (jignore_range.contains("enable")) {
+                global::settings.ignore_range.enable = jignore_range["enable"];
+            }
             if (jignore_range.contains("low")) {
                 global::settings.ignore_range[0] = jignore_range["low"];
             }
@@ -145,6 +154,28 @@ bool read_settings(std::string path) {
             nlohmann::json jchannel_volumes = jsettings["channel_volumes"];
             for (int i = 0; i < 16; i++) {
                 global::settings.channel_volumes[i] = jchannel_volumes[i];
+            }
+        }
+
+        if (jsettings.contains("limiter")) {
+            nlohmann::json jlimiter = jsettings["limiter"];
+            if (jlimiter.contains("enable")) {
+                global::settings.limiter.enable = jlimiter["enable"];
+            }
+            if (jlimiter.contains("gain")) {
+                global::settings.limiter.gain = jlimiter["gain"];
+            }
+            if (jlimiter.contains("threshold")) {
+                global::settings.limiter.threshold = jlimiter["threshold"];
+            }
+            if (jlimiter.contains("ratio")) {
+                global::settings.limiter.ratio = jlimiter["ratio"];
+            }
+            if (jlimiter.contains("attack")) {
+                global::settings.limiter.attack = jlimiter["attack"];
+            }
+            if (jlimiter.contains("release")) {
+                global::settings.limiter.release = jlimiter["release"];
             }
         }
 

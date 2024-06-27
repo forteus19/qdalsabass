@@ -24,6 +24,9 @@ void set_ron(bool enable);
 
 void set_channel_volume(int channel, float volume);
 
+void set_limiter(bool enable);
+void update_limiter_settings(void);
+
 int add_soundfont(std::string path, int preset, int bank);
 bool init_soundfonts(void);
 int reload_soundfonts(void);

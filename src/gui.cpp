@@ -430,12 +430,10 @@ void draw_gui(void) {
                 midi::set_max_voices(global::settings.max_voices);
             }
 
-            ImGui::Checkbox("Enable ignore range", &global::settings.enable_ignore_range);
+            ImGui::Checkbox("Enable ignore range", &global::settings.ignore_range.enable);
 
-            ImGui::BeginDisabled(!global::settings.enable_ignore_range);
-            ImGui::InputInt2("Ignore range", global::settings.ignore_range);
-            global::settings.ignore_range[0] = std::clamp(global::settings.ignore_range[0], 1, global::settings.ignore_range[1]);
-            global::settings.ignore_range[1] = std::clamp(global::settings.ignore_range[1], global::settings.ignore_range[0], 127);
+            ImGui::BeginDisabled(!global::settings.ignore_range.enable);
+            ImGui::DragIntRange2("Ignore range", &global::settings.ignore_range[0], &global::settings.ignore_range[1], 0.2f, 1, 127);
             ImGui::EndDisabled();
 
             if (ImGui::Checkbox("Enable effects", &global::settings.enable_effects)) {
@@ -473,6 +471,31 @@ void draw_gui(void) {
 
                 ImGui::EndTable();
             }
+
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Limiter")) {
+            if (ImGui::Checkbox("Enable limiter", &global::settings.limiter.enable)) {
+                midi::set_limiter(global::settings.limiter.enable);
+            }
+            ImGui::BeginDisabled(!global::settings.limiter.enable);
+
+            bool changed = false;
+            changed |= ImGui::SliderFloat("Gain", &global::settings.limiter.gain, -60.0f, 60.0f, "%.1f dB", ImGuiSliderFlags_Logarithmic);
+            changed |= ImGui::SliderFloat("Threshold", &global::settings.limiter.threshold, -60.0f, 0.0f, "%.1f dB", ImGuiSliderFlags_Logarithmic);
+            changed |= ImGui::InputFloat("Ratio", &global::settings.limiter.ratio, 0.0f, 0.0f, "%.2f:1");
+            changed |= ImGui::InputFloat("Attack", &global::settings.limiter.attack, 0.0f, 0.0f, global::settings.limiter.attack < 1.0f ? global::settings.limiter.attack < 0.1f ? "%.2fms" : "%.1fms" : "%.0fms");
+            changed |= ImGui::InputFloat("Release", &global::settings.limiter.release, 0.0f, 0.0f, global::settings.limiter.release < 1.0f ? global::settings.limiter.release < 0.1f ? "%.2fms" : "%.1fms" : "%.0fms");
+            if (changed) {
+                global::settings.limiter.attack = std::clamp(global::settings.limiter.attack, 0.01f, 1000.0f);
+                global::settings.limiter.ratio = std::max(global::settings.limiter.ratio, 1.0f);
+                global::settings.limiter.release = std::clamp(global::settings.limiter.release, 0.01f, 5000.0f);
+                midi::update_limiter_settings();
+            }
+            
+            ImGui::EndDisabled();
+
+            ImGui::EndTabItem();
         }
         
         ImGui::EndTabBar();

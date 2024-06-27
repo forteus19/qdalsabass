@@ -30,7 +30,7 @@ typedef struct {
 } soundfont_t;
 
 typedef struct {
-    enum appearance_value_ {
+    enum {
         APPEARANCE_DARK = 0,
         APPEARANCE_LIGHT = 1,
         APPEARANCE_CLASSIC = 2
@@ -40,11 +40,24 @@ typedef struct {
     int max_voices = 1000;
     int sample_rate = 5;
     int ev_buffer_size = 8192;
-    bool enable_ignore_range = false;
-    int ignore_range[2] = { 1, 1 };
+    struct {
+        bool enable;
+        int range[2];
+        int &operator[](int index) {
+            return range[index];
+        }
+    } ignore_range = { false, { 1, 1 } };
     bool enable_effects = true;
     bool release_oldest_note = false;
     float channel_volumes[16] = { 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1 };
+    struct {
+        bool enable;
+        float gain;
+        float threshold;
+        float ratio;
+        float attack;
+        float release;
+    } limiter = { true, 0.0f, -10.0f, 25.0f, 5.0f, 50.0f };
 
     std::vector<soundfont_t> soundfonts;
 } settings_t;

@@ -37,7 +37,7 @@ std::optional<std::string> init_from_settings(void) {
 }
 
 bool within_filter(event_t *ev) {
-    if (!global::settings.enable_ignore_range) {
+    if (!global::settings.ignore_range.enable) {
         return true;
     }
     if (ev->type != SND_SEQ_EVENT_NOTEON) {
