@@ -29,7 +29,7 @@ bool put_event(event_t *ev) {
     if ((ev_whead + 1) % ev_buffer_size == ev_rhead) {
         using namespace std::literals::chrono_literals;
 
-        if (std::chrono::high_resolution_clock::now() - last_warn >= 50ms) {
+        if (std::chrono::high_resolution_clock::now() - last_warn >= 200ms) {
             QDAB_WARN("Event buffer is full; discarding events");
             last_warn = std::chrono::high_resolution_clock::now();
         }

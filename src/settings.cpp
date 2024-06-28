@@ -59,6 +59,7 @@ void write_settings(std::string path) {
 
     jsettings["appearance"] = global::settings.appearance;
     jsettings["volume"] = global::settings.volume;
+    jsettings["max_rendering_time"] = global::settings.max_rendering_time;
     jsettings["max_voices"] = global::settings.max_voices;
     jsettings["sample_rate"] = global::settings.sample_rate;
     jsettings["ev_buffer_size"] = global::settings.ev_buffer_size;
@@ -117,6 +118,9 @@ bool read_settings(std::string path) {
         if (jsettings.contains("volume") && jsettings["volume"] >= 0.0f && jsettings["volume"] <= 1.0f) {
             global::settings.volume = jsettings["volume"];
         }
+        if (jsettings.contains("max_rendering_time")) {
+            global::settings.max_rendering_time = std::clamp((float)jsettings["max_rendering_time"], 0.0f, 100.0f);
+        }
         if (jsettings.contains("max_voices")) {
             global::settings.max_voices = std::clamp((int)jsettings["max_voices"], 1, 100000);
         }
@@ -124,7 +128,7 @@ bool read_settings(std::string path) {
             global::settings.sample_rate = std::clamp((int)jsettings["sample_rate"], 0, sample_rate_count - 1);
         }
         if (jsettings.contains("ev_buffer_size")) {
-            global::settings.ev_buffer_size = std::clamp((int)jsettings["ev_buffer_size"], 1, 262144);
+            global::settings.ev_buffer_size = std::clamp((int)jsettings["ev_buffer_size"], 128, 65536);
         }
         if (jsettings.contains("enable_ignore_range")) {  // Compatibility
             global::settings.ignore_range.enable = jsettings["enable_ignore_range"];

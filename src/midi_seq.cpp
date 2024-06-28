@@ -74,6 +74,7 @@ void seq_main(void) {
         if (within_filter(ev)) {
             midi::put_event(ev);
         }
+        snd_seq_free_event(ev);
     }
 }
 

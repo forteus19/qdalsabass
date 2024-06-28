@@ -31,6 +31,7 @@ static bool save_settings = true;
 
 static ImFont *imfont;
 static ImFont *imfont_big;
+static ImFont *imfont_mono;
 
 static std::string config_error_modal_msg;
 static int bass_failed_modal_msg;
@@ -312,7 +313,12 @@ void draw_gui(void) {
 
                 ImGui::Text("Rendering time: %.1f%%", midi::get_cpu());
                 ImGui::Text("Active voices: %d", midi::get_active_voices());
-                ImGui::Text("RH/WH position: %04d/%04d", midi::get_rhead_pos(), midi::get_whead_pos());
+                ImGui::Text("RH/WH position:");
+                ImGui::SameLine();
+                ImGui::PushFont(imfont_mono);
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text("%04X/%04X", midi::get_rhead_pos(), midi::get_whead_pos());
+                ImGui::PopFont();
 
                 ImGui::Separator();
 
@@ -411,7 +417,7 @@ void draw_gui(void) {
             ImGui::Combo("Sample rate", &global::settings.sample_rate, settings::sample_rate_strs, settings::sample_rate_count);
 
             ImGui::InputInt("Event buffer size", &global::settings.ev_buffer_size);
-            global::settings.ev_buffer_size = std::clamp(global::settings.ev_buffer_size, 1, 262144);
+            global::settings.ev_buffer_size = std::clamp(global::settings.ev_buffer_size, 128, 65536);
             ImGui::SameLine();
             warning_marker("Changing this setting is dangerous. Make sure you know what you are doing!");
 
@@ -552,6 +558,7 @@ int gui_main(void) {
     
     imfont = io.Fonts->AddFontFromMemoryCompressedTTF(font::font_compressed_data, font::font_compressed_size, 17);
     imfont_big = io.Fonts->AddFontFromMemoryCompressedTTF(font::font_compressed_data, font::font_compressed_size, 17 * 2);
+    imfont_mono = io.Fonts->AddFontDefault();
 
     ImGui_ImplSDL2_InitForSDLRenderer(sdl_window, sdl_renderer);
     ImGui_ImplSDLRenderer2_Init(sdl_renderer);

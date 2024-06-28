@@ -22,6 +22,8 @@
 #include "global.h"
 #include "gui.h"
 
+#define BASS_VERSION_PARTS(version) ((version >> 24) & 0xFF), ((version >> 16) & 0xFF), ((version >> 8) & 0xFF), (version & 0xFF)
+
 namespace qdab::midi::bass {
 
 static HSTREAM bass_master_stream;
@@ -76,6 +78,7 @@ void set_channel_volume(int channel, float volume) {
 void set_limiter(bool enable) {
     if (enable) {
         limiter_handle = BASS_ChannelSetFX(bass_master_stream, BASS_FX_BFX_COMPRESSOR2, 0);
+        update_limiter_settings();
     } else if (limiter_handle != 0) {
         BASS_ChannelRemoveFX(bass_master_stream, limiter_handle);
         limiter_handle = 0;
@@ -278,17 +281,17 @@ void bass_main(void) {
     DWORD bass_version = BASS_GetVersion();
     DWORD bass_fx_version = BASS_FX_GetVersion();
 
-    QDAB_TRACE("BASS library version: {}.{}", HIWORD(bass_version), LOWORD(bass_version));
-    QDAB_TRACE("BASS_FX library version: {}.{}", HIWORD(bass_fx_version), LOWORD(bass_fx_version));
-    QDAB_TRACE("BASS header version: {}", BASSVERSION);
+    QDAB_TRACE("BASS library version: {}.{}.{}.{}", BASS_VERSION_PARTS(bass_version));
+    QDAB_TRACE("BASS_FX library version: {}.{}.{}.{}", BASS_VERSION_PARTS(bass_fx_version));
+    QDAB_TRACE("BASS header version: {}.{}", HIBYTE(BASSVERSION), LOBYTE(BASSVERSION));
 
-    if (HIWORD(bass_version) != BASSVERSION || LOWORD(bass_version) < 0x100) {
+    if (HIWORD(bass_version) != BASSVERSION) {
         QDAB_CRIT("BASS version mismatch!");
         global::clean_exit(0);
         return;
     }
 
-    if (HIWORD(bass_fx_version) != BASSVERSION || LOWORD(bass_fx_version) < 0x100) {
+    if (HIWORD(bass_fx_version) != BASSVERSION) {
         QDAB_CRIT("BASS_FX version mismatch!");
         global::clean_exit(0);
         return;

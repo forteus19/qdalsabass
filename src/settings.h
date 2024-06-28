@@ -57,7 +57,7 @@ typedef struct {
         float ratio;
         float attack;
         float release;
-    } limiter = { true, 0.0f, -10.0f, 25.0f, 5.0f, 50.0f };
+    } limiter = { true, -1.0f, -10.0f, 25.0f, 5.0f, 50.0f };
 
     std::vector<soundfont_t> soundfonts;
 } settings_t;
